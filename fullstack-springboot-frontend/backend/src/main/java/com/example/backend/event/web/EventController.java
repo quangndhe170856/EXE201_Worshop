@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/events")
+@CrossOrigin(origins = "http://localhost:3005")
 @RequiredArgsConstructor
 public class EventController {
 

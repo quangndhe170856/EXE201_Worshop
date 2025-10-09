@@ -1,86 +1,74 @@
-import { useState, useMemo } from 'react'
-import { Navigation } from './components/Navigation'
-import { HeroCarousel } from './components/HeroCarousel'
-import { SpecialEvents } from './components/SpecialEvents'
-import { EventDetail } from './components/EventDetail'
-import { CreateEvent } from './components/CreateEvent'
-import { SearchAndFilters, FilterState } from './components/SearchAndFilters'
-import { eventsData } from './data/events'
-import { filterEvents, sortEvents } from './utils/filterEvents'
+import { useEffect, useState } from "react";
+import { Header } from "./components/Header";
+import { HeroCarousel } from "./components/HeroCarousel";
+import { SpecialEvents } from "./components/SpecialEvents";
+import { EventDetail } from "./components/EventDetail";
+import { Footer } from "./components/Footer";
+import { SearchAndFilters, FilterState } from "./components/SearchAndFilters";
+import { EventResponse } from "./data/events";
+import { fetchEvents } from "./data/events"; // ✅ Gọi API thật thay cho fakePageResponse
 
-type ViewState = 'home' | 'eventDetail' | 'createEvent'
+type ViewState = "home" | "eventDetail";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewState>('home')
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null)
+  const [currentView, setCurrentView] = useState<ViewState>("home");
+  const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(null);
+  const [events, setEvents] = useState<EventResponse[]>([]);
   const [filters, setFilters] = useState<FilterState>({
-    searchQuery: '',
+    searchQuery: "",
     categories: [],
     dateRange: {},
-    priceRange: [0, 5000000],
-    locations: [],
-    sortBy: 'date'
-  })
+    sortBy: "latest",
+  });
+  const [loading, setLoading] = useState(false);
 
-  const selectedEvent = selectedEventId ? eventsData.find(event => event.id === selectedEventId) : null
+  const handleEventClick = (event: EventResponse) => {
+    setSelectedEvent(event);
+    setCurrentView("eventDetail");
+  };
 
-  // Filter and sort events based on current filters
-  const filteredAndSortedEvents = useMemo(() => {
-    const filtered = filterEvents(eventsData, filters)
-    return sortEvents(filtered, filters.sortBy)
-  }, [filters])
+  const handleBack = () => {
+    setSelectedEvent(null);
+    setCurrentView("home");
+  };
 
-  const handleEventClick = (eventId: number) => {
-    setSelectedEventId(eventId)
-    setCurrentView('eventDetail')
-  }
+  // ✅ Dùng backend thật thay vì fake data
+  useEffect(() => {
+    const loadEvents = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchEvents(); // gọi API http://localhost:8080/api/events
+        setEvents(data);
+      } catch (err) {
+        console.error("❌ Lỗi tải sự kiện:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleCreateEvent = () => {
-    setCurrentView('createEvent')
-  }
-
-  const handleBackToHome = () => {
-    setCurrentView('home')
-    setSelectedEventId(null)
-  }
-
-  const handleFiltersChange = (newFilters: FilterState) => {
-    setFilters(newFilters)
-  }
-
-  const handleClearFilters = () => {
-    setFilters({
-      searchQuery: '',
-      categories: [],
-      dateRange: {},
-      priceRange: [0, 5000000],
-      locations: [],
-      sortBy: 'date'
-    })
-  }
-
-  if (currentView === 'createEvent') {
-    return <CreateEvent onBack={handleBackToHome} />
-  }
-
-  if (currentView === 'eventDetail' && selectedEvent) {
-    return <EventDetail event={selectedEvent} onBack={handleBackToHome} />
-  }
+    loadEvents();
+  }, [filters]); // bạn có thể thêm filters nếu backend hỗ trợ filter
 
   return (
-    <div className="min-h-screen bg-black">
-      <Navigation onCreateEvent={handleCreateEvent} />
-      <HeroCarousel onEventClick={handleEventClick} />
-      <SearchAndFilters 
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        onClearFilters={handleClearFilters}
-        eventCount={filteredAndSortedEvents.length}
-      />
-      <SpecialEvents 
-        events={filteredAndSortedEvents} 
-        onEventClick={handleEventClick} 
-      />
-    </div>
-  )
+      <div className="min-h-screen bg-white">
+        <Header />
+
+        {currentView === "home" && (
+            <>
+              <HeroCarousel onEventClick={() => {}} />
+              <SpecialEvents
+                  events={events}
+                  loading={loading}
+                  onEventClick={handleEventClick}
+              />
+            </>
+        )}
+
+        {currentView === "eventDetail" && selectedEvent && (
+            <EventDetail event={selectedEvent} onBack={handleBack} />
+        )}
+
+        <Footer />
+      </div>
+  );
 }
